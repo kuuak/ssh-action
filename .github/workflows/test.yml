@@ -10,12 +10,14 @@ jobs:
   test:
     name: Test Action
     runs-on: ubuntu-latest
+    env:
+      HAS_SSH_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - id: ssh
         name: Run action
-        if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
+        if: ${{ env.HAS_SSH_SECRETS == 'true' }}
         uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -33,12 +35,14 @@ jobs:
   test-bastion:
     name: Test Action (via bastion)
     runs-on: ubuntu-latest
+    env:
+      HAS_BASTION_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - id: ssh
         name: Run action with bastion
-        if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
+        if: ${{ env.HAS_BASTION_SECRETS == 'true' }}
         uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
