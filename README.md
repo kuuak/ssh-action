@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: ssh
-        uses: ./ # or your-org/ssh-action@v1
+        uses: kuuak/ssh-action@main
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: "22"
@@ -55,7 +55,7 @@ If the bastion uses a **different** key than the final host, set `SSH_BASTION_KE
 
 ```yaml
       - id: ssh
-        uses: ./
+        uses: kuuak/ssh-action@main
         with:
           NAME: prod
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -74,7 +74,7 @@ Run the action once per server with a **unique** `NAME` each time.
 
 ```yaml
       - id: ssh-foo
-        uses: ./
+        uses: kuuak/ssh-action@main
         with:
           NAME: foo
           SSH_HOST: ${{ secrets.FOO_HOST }}
@@ -82,7 +82,7 @@ Run the action once per server with a **unique** `NAME` each time.
           SSH_USER: ${{ secrets.FOO_USER }}
           SSH_KEY: ${{ secrets.FOO_KEY }}
       - id: ssh-bar
-        uses: ./
+        uses: kuuak/ssh-action@main
         with:
           NAME: bar
           SSH_HOST: ${{ secrets.BAR_HOST }}
