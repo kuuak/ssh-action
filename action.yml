@@ -104,6 +104,8 @@ runs:
 
           if [[ -n "$BASTION_HOST" ]]; then
             echo "  ProxyJump ${{ steps.setup.outputs.name }}-bastion"
+            # Target may only be reachable via bastion; accept its host key automatically on first connect.
+            echo "  StrictHostKeyChecking accept-new"
           fi
         } >> ~/.ssh/config
       shell: bash
