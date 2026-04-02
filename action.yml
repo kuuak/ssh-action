@@ -20,6 +20,16 @@ inputs:
   SSH_KEY:
     description: "The full string SSH key"
     required: true
+  SSH_BASTION_USER:
+    description: "Optional SSH username for bastion/jump host"
+    required: false
+  SSH_BASTION_HOST:
+    description: "Optional bastion/jump host (hostname or IP)"
+    required: false
+  SSH_BASTION_PORT:
+    description: "Optional bastion/jump port"
+    required: false
+    default: "22"
 
 outputs:
   SERVER:
@@ -42,17 +52,34 @@ runs:
         sudo chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.key
       shell: bash
     - name: Scan the public ssh host keys
-      run: ssh-keyscan -p ${{ inputs.SSH_PORT }} -H ${{ inputs.SSH_HOST }} >> ~/.ssh/known_hosts
+      run: |
+        ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+        if [[ -n "${{ inputs.SSH_BASTION_HOST }}" ]]; then
+          ssh-keyscan -p "${{ inputs.SSH_BASTION_PORT }}" -H "${{ inputs.SSH_BASTION_HOST }}" >> ~/.ssh/known_hosts
+        fi
       shell: bash
     - name: Create SSH config
       run: |
-        cat >>~/.ssh/config <<END
-        Host ${{ steps.setup.outputs.name }}
-          HostName ${{ inputs.SSH_HOST }}
-          Port ${{ inputs.SSH_PORT }}
-          User ${{ inputs.SSH_USER }}
-          IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key
-        END
+        BASTION_HOST="${{ inputs.SSH_BASTION_HOST }}"
+        BASTION_USER="${{ inputs.SSH_BASTION_USER }}"
+        BASTION_PORT="${{ inputs.SSH_BASTION_PORT }}"
+
+        if [[ -z "$BASTION_USER" ]]; then
+          BASTION_USER="${{ inputs.SSH_USER }}"
+        fi
+
+        {
+          echo "Host ${{ steps.setup.outputs.name }}"
+          echo "  HostName ${{ inputs.SSH_HOST }}"
+          echo "  Port ${{ inputs.SSH_PORT }}"
+          echo "  User ${{ inputs.SSH_USER }}"
+          echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key"
+
+          if [[ -n "$BASTION_HOST" ]]; then
+            echo "  ProxyJump ${BASTION_USER}@${BASTION_HOST}:${BASTION_PORT}"
+          fi
+        } >> ~/.ssh/config
       shell: bash
 
 branding:
