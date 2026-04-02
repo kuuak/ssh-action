@@ -10,17 +10,52 @@ jobs:
   test:
     name: Test Action
     runs-on: ubuntu-latest
+    env:
+      HAS_SSH_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
     steps:
+      - uses: actions/checkout@v4
+
       - id: ssh
         name: Run action
-        uses: invi5H/ssh-action@main
+        if: ${{ env.HAS_SSH_SECRETS == 'true' }}
+        uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
 
       - name: Config file for debugging
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: cat ~/.ssh/config
 
       - name: Test
+        if: ${{ steps.ssh.conclusion == 'success' }}
+        run: ssh -q ${{ steps.ssh.outputs.SERVER }} 'pwd && exit'
+
+  test-bastion:
+    name: Test Action (via bastion)
+    runs-on: ubuntu-latest
+    env:
+      HAS_BASTION_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: ssh
+        name: Run action with bastion
+        if: ${{ env.HAS_BASTION_SECRETS == 'true' }}
+        uses: ./
+        with:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_BASTION_HOST: ${{ secrets.SSH_BASTION_HOST }}
+          SSH_BASTION_USER: ${{ secrets.SSH_BASTION_USER }}
+          SSH_BASTION_KEY: ${{ secrets.SSH_BASTION_KEY }}
+
+      - name: Config file for debugging
+        if: ${{ steps.ssh.conclusion == 'success' }}
+        run: cat ~/.ssh/config
+
+      - name: Test
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: ssh -q ${{ steps.ssh.outputs.SERVER }} 'pwd && exit'

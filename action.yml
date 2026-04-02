@@ -20,6 +20,19 @@ inputs:
   SSH_KEY:
     description: "The full string SSH key"
     required: true
+  SSH_BASTION_USER:
+    description: "Optional SSH username for bastion/jump host"
+    required: false
+  SSH_BASTION_HOST:
+    description: "Optional bastion/jump host (hostname or IP)"
+    required: false
+  SSH_BASTION_KEY:
+    description: "Optional private key for bastion/jump host (if different from SSH_KEY)"
+    required: false
+  SSH_BASTION_PORT:
+    description: "Optional bastion/jump port"
+    required: false
+    default: "22"
 
 outputs:
   SERVER:
@@ -39,20 +52,64 @@ runs:
       run: |
         mkdir -p ~/.ssh/
         echo "${{ inputs.SSH_KEY }}" > ~/.ssh/${{ steps.setup.outputs.name }}.key
-        sudo chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.key
+        chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.key
+      shell: bash
+    - name: Create bastion SSH key (optional)
+      run: |
+        if [[ -n "${{ inputs.SSH_BASTION_KEY }}" ]]; then
+          mkdir -p ~/.ssh/
+          echo "${{ inputs.SSH_BASTION_KEY }}" > ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key
+          chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key
+        fi
       shell: bash
     - name: Scan the public ssh host keys
-      run: ssh-keyscan -p ${{ inputs.SSH_PORT }} -H ${{ inputs.SSH_HOST }} >> ~/.ssh/known_hosts
+      run: |
+        # When no bastion is configured, fail on ssh-keyscan errors (current behavior).
+        if [[ -z "${{ inputs.SSH_BASTION_HOST }}" ]]; then
+          ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts
+        else
+          # When using a bastion, the target host may not be reachable from the runner.
+          # Make ssh-keyscan best-effort to avoid failing the action in that case.
+          ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts || true
+          ssh-keyscan -p "${{ inputs.SSH_BASTION_PORT }}" -H "${{ inputs.SSH_BASTION_HOST }}" >> ~/.ssh/known_hosts || true
+        fi
       shell: bash
     - name: Create SSH config
       run: |
-        cat >>~/.ssh/config <<END
-        Host ${{ steps.setup.outputs.name }}
-          HostName ${{ inputs.SSH_HOST }}
-          Port ${{ inputs.SSH_PORT }}
-          User ${{ inputs.SSH_USER }}
-          IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key
-        END
+        BASTION_HOST="${{ inputs.SSH_BASTION_HOST }}"
+        BASTION_USER="${{ inputs.SSH_BASTION_USER }}"
+        BASTION_PORT="${{ inputs.SSH_BASTION_PORT }}"
+        BASTION_KEY_PRESENT="${{ inputs.SSH_BASTION_KEY }}"
+
+        if [[ -z "$BASTION_USER" ]]; then
+          BASTION_USER="${{ inputs.SSH_USER }}"
+        fi
+
+        {
+          if [[ -n "$BASTION_HOST" ]]; then
+            echo "Host ${{ steps.setup.outputs.name }}-bastion"
+            echo "  HostName ${BASTION_HOST}"
+            echo "  Port ${BASTION_PORT}"
+            echo "  User ${BASTION_USER}"
+            if [[ -n "$BASTION_KEY_PRESENT" ]]; then
+              echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key"
+            else
+              echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key"
+            fi
+          fi
+
+          echo "Host ${{ steps.setup.outputs.name }}"
+          echo "  HostName ${{ inputs.SSH_HOST }}"
+          echo "  Port ${{ inputs.SSH_PORT }}"
+          echo "  User ${{ inputs.SSH_USER }}"
+          echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key"
+
+          if [[ -n "$BASTION_HOST" ]]; then
+            echo "  ProxyJump ${{ steps.setup.outputs.name }}-bastion"
+            # Target may only be reachable via bastion; accept its host key automatically on first connect.
+            echo "  StrictHostKeyChecking accept-new"
+          fi
+        } >> ~/.ssh/config
       shell: bash
 
 branding:
