@@ -93,6 +93,8 @@ runs:
             echo "  User ${BASTION_USER}"
             if [[ -n "$BASTION_KEY_PRESENT" ]]; then
               echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key"
+            else
+              echo "  IdentityFile ~/.ssh/${{ steps.setup.outputs.name }}.key"
             fi
           fi
 

@@ -61,10 +61,10 @@ If the bastion uses a **different** key than the final host, set `SSH_BASTION_KE
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_BASTION_HOST: ${{ secrets.BASTION_HOST }}
-          SSH_BASTION_USER: ${{ secrets.BASTION_USER }}
+          SSH_BASTION_HOST: ${{ secrets.SSH_BASTION_HOST }}
+          SSH_BASTION_USER: ${{ secrets.SSH_BASTION_USER }}
           SSH_BASTION_PORT: "22"
-          SSH_BASTION_KEY: ${{ secrets.BASTION_SSH_KEY }}
+          SSH_BASTION_KEY: ${{ secrets.SSH_BASTION_KEY }}
       - run: ssh ${{ steps.ssh.outputs.SERVER }} 'hostname'
 ```
 
