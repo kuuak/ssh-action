@@ -9,15 +9,42 @@ concurrency: ${{ github.workflow }}
 jobs:
   test:
     name: Test Action
+    if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - id: ssh
         name: Run action
-        uses: invi5H/ssh-action@main
+        uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
+
+      - name: Config file for debugging
+        run: cat ~/.ssh/config
+
+      - name: Test
+        run: ssh -q ${{ steps.ssh.outputs.SERVER }} 'pwd && exit'
+
+  test-bastion:
+    name: Test Action (via bastion)
+    if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: ssh
+        name: Run action with bastion
+        uses: ./
+        with:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_BASTION_HOST: ${{ secrets.SSH_BASTION_HOST }}
+          SSH_BASTION_USER: ${{ secrets.SSH_BASTION_USER }}
+          SSH_BASTION_KEY: ${{ secrets.SSH_BASTION_KEY }}
 
       - name: Config file for debugging
         run: cat ~/.ssh/config
