@@ -9,13 +9,13 @@ concurrency: ${{ github.workflow }}
 jobs:
   test:
     name: Test Action
-    if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - id: ssh
         name: Run action
+        if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
         uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -23,20 +23,22 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
 
       - name: Config file for debugging
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: cat ~/.ssh/config
 
       - name: Test
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: ssh -q ${{ steps.ssh.outputs.SERVER }} 'pwd && exit'
 
   test-bastion:
     name: Test Action (via bastion)
-    if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - id: ssh
         name: Run action with bastion
+        if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' && secrets.SSH_BASTION_HOST != '' }}
         uses: ./
         with:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -47,7 +49,9 @@ jobs:
           SSH_BASTION_KEY: ${{ secrets.SSH_BASTION_KEY }}
 
       - name: Config file for debugging
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: cat ~/.ssh/config
 
       - name: Test
+        if: ${{ steps.ssh.conclusion == 'success' }}
         run: ssh -q ${{ steps.ssh.outputs.SERVER }} 'pwd && exit'
