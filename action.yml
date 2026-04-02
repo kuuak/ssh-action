@@ -52,22 +52,26 @@ runs:
       run: |
         mkdir -p ~/.ssh/
         echo "${{ inputs.SSH_KEY }}" > ~/.ssh/${{ steps.setup.outputs.name }}.key
-        sudo chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.key
+        chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.key
       shell: bash
     - name: Create bastion SSH key (optional)
       run: |
         if [[ -n "${{ inputs.SSH_BASTION_KEY }}" ]]; then
           mkdir -p ~/.ssh/
           echo "${{ inputs.SSH_BASTION_KEY }}" > ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key
-          sudo chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key
+          chmod 600 ~/.ssh/${{ steps.setup.outputs.name }}.bastion.key
         fi
       shell: bash
     - name: Scan the public ssh host keys
       run: |
-        ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts
-
-        if [[ -n "${{ inputs.SSH_BASTION_HOST }}" ]]; then
-          ssh-keyscan -p "${{ inputs.SSH_BASTION_PORT }}" -H "${{ inputs.SSH_BASTION_HOST }}" >> ~/.ssh/known_hosts
+        # When no bastion is configured, fail on ssh-keyscan errors (current behavior).
+        if [[ -z "${{ inputs.SSH_BASTION_HOST }}" ]]; then
+          ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts
+        else
+          # When using a bastion, the target host may not be reachable from the runner.
+          # Make ssh-keyscan best-effort to avoid failing the action in that case.
+          ssh-keyscan -p "${{ inputs.SSH_PORT }}" -H "${{ inputs.SSH_HOST }}" >> ~/.ssh/known_hosts || true
+          ssh-keyscan -p "${{ inputs.SSH_BASTION_PORT }}" -H "${{ inputs.SSH_BASTION_HOST }}" >> ~/.ssh/known_hosts || true
         fi
       shell: bash
     - name: Create SSH config
